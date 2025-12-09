@@ -2,51 +2,153 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Crop Field SAM3 KML WebApp</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Leaflet.draw CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+  <title>Crop Field Delineation - SAM3 KML</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-draw/1.0.4/leaflet.draw.min.css" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
-    #map { position: absolute; top: 120px; left: 0; right: 0; bottom: 0; z-index: 1; }
-    #controls { position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    #controls h1 { font-size: 24px; margin-bottom: 12px; font-weight: 600; }
-    .button-group { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
-    .btn { padding: 10px 16px; border: none; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; }
-    .btn-primary { background-color: #4CAF50; color: white; }
-    .btn-primary:hover { background-color: #45a049; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-    .btn-success { background-color: #2196F3; color: white; }
-    .btn-success:hover { background-color: #0b7dda; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-    .btn-danger { background-color: #f44336; color: white; }
-    .btn-danger:hover { background-color: #da190b; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-    .stats { font-size: 13px; background: rgba(255,255,255,0.15); padding: 8px 12px; border-radius: 4px; display: inline-block; }
-    .stats p { margin: 0; }
-    @media (max-width: 768px) { #controls { padding: 10px; } #controls h1 { font-size: 18px; margin-bottom: 8px; } .button-group { flex-direction: column; } .btn { width: 100%; } #map { top: 160px; } }
+    body { font-family: 'Arial', sans-serif; height: 100vh; }
+    #map { width: 100%; height: calc(100vh - 120px); }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; }
+    .header h1 { font-size: 22px; margin-bottom: 10px; }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+    button { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; color: white; transition: 0.3s; }
+    .btn-primary { background: #4CAF50; }
+    .btn-primary:hover { background: #45a049; }
+    .btn-success { background: #2196F3; }
+    .btn-success:hover { background: #0b7dda; }
+    .btn-danger { background: #f44336; }
+    .btn-danger:hover { background: #da190b; }
+    .stats { color: #fff; font-size: 13px; display: inline-block; background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 4px; margin-top: 8px; }
+    .alert { padding: 10px 15px; margin: 5px 0; border-radius: 4px; display: none; }
+    .alert-success { background: #4CAF50; color: white; }
+    .alert.show { display: block; }
   </style>
 </head>
 <body>
-  <div id="controls">
-    <h1>Crop Field Delineation</h1>
-    <div class="button-group">
-      <button id="loadSAM3" class="btn btn-primary">Load SAM3 Fields</button>
-      <button id="exportKML" class="btn btn-success">Download KML</button>
-      <button id="clearFields" class="btn btn-danger">Clear All</button>
+  <div class="header">
+    <h1>✍️ Crop Field Delineation</h1>
+    <div class="controls">
+      <button id="drawBtn" class="btn-primary">Draw Field</button>
+      <button id="editBtn" class="btn-primary">Edit Field</button>
+      <button id="deleteBtn" class="btn-danger">Delete Field</button>
+      <button id="exportBtn" class="btn-success">Download KML</button>
+      <button id="clearBtn" class="btn-danger">Clear All</button>
     </div>
-    <div class="stats">
-      <p>Fields: <span id="fieldCount">0</span> | Area: <span id="totalArea">0</span> m²</p>
-    </div>
+    <div class="stats">Fields: <span id="fieldCount">0</span> | Area: <span id="totalArea">0</span> m²</div>
   </div>
+  <div id="alert" class="alert alert-success"></div>
   <div id="map"></div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Leaflet.draw JS -->
-  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-  <!-- App scripts -->
-  <script src="js/kml-export.js"></script>
-  <script src="js/app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-draw/1.0.4/leaflet.draw.min.js"></script>
+  
+  <script>
+    // Initialize map
+    let map = L.map('map').setView([25.0, 82.0], 6);
+    let drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+    
+    // Add basemap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+      maxZoom: 19
+    }).addTo(map);
+    
+    // Add satellite layer
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri',
+      maxZoom: 18,
+      opacity: 0.7
+    }).addTo(map);
+    
+    // Draw control
+    let drawControl = new L.Control.Draw({
+      edit: { featureGroup: drawnItems, poly: { allowIntersection: false } },
+      draw: { polygon: true, polyline: false, rectangle: false, circle: false, marker: false, circlemarker: false }
+    });
+    map.addControl(drawControl);
+    
+    // Events
+    map.on('draw:created', function(e) {
+      let layer = e.layer;
+      drawnItems.addLayer(layer);
+      updateStats();
+    });
+    
+    map.on('draw:edited', updateStats);
+    map.on('draw:deleted', updateStats);
+    
+    // Update statistics
+    function updateStats() {
+      let features = drawnItems.toGeoJSON().features;
+      let count = features.length;
+      let area = 0;
+      features.forEach(f => {
+        if (f.geometry && f.geometry.type === 'Polygon') {
+          area += calculateArea(f.geometry.coordinates[0]);
+        }
+      });
+      document.getElementById('fieldCount').textContent = count;
+      document.getElementById('totalArea').textContent = Math.round(area);
+    }
+    
+    function calculateArea(coords) {
+      let area = 0;
+      for (let i = 0; i < coords.length - 1; i++) {
+        area += (coords[i+1][0] - coords[i][0]) * (coords[i+1][1] + coords[i][1]);
+      }
+      return Math.abs(area / 2) * 111000 * 111000;
+    }
+    
+    // KML Export
+    function geojsonToKml(geojson) {
+      let kml = '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Crop Fields</name>';
+      geojson.features.forEach((f, idx) => {
+        if (f.geometry.type === 'Polygon') {
+          let coords = f.geometry.coordinates[0].map(c => c[0] + ',' + c[1] + ',0').join(' ');
+          kml += `<Placemark><name>Field ${idx + 1}</name><Polygon><outerBoundaryIs><LinearRing><coordinates>${coords}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`;
+        }
+      });
+      kml += '</Document></kml>';
+      return kml;
+    }
+    
+    function downloadKML() {
+      let geojson = drawnItems.toGeoJSON();
+      if (!geojson.features.length) {
+        showAlert('No fields to export!', 'error');
+        return;
+      }
+      let kml = geojsonToKml(geojson);
+      let blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
+      let url = URL.createObjectURL(blob);
+      let a = document.createElement('a');
+      a.href = url;
+      a.download = 'crop_fields_' + new Date().toISOString().slice(0, 10) + '.kml';
+      a.click();
+      URL.revokeObjectURL(url);
+      showAlert('KML exported successfully!', 'success');
+    }
+    
+    function showAlert(msg, type = 'success') {
+      let alert = document.getElementById('alert');
+      alert.textContent = msg;
+      alert.className = 'alert alert-' + type + ' show';
+      setTimeout(() => alert.classList.remove('show'), 3000);
+    }
+    
+    // Button handlers
+    document.getElementById('exportBtn').onclick = downloadKML;
+    document.getElementById('clearBtn').onclick = () => {
+      if (confirm('Clear all fields?')) {
+        drawnItems.clearLayers();
+        updateStats();
+      }
+    };
+    
+    console.log('Crop Field Delineation App v1.0 Loaded');
+  </script>
 </body>
 </html>
